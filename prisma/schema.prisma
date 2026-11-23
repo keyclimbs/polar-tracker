@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  timezone  String   @default("UTC")
+  units     String   @default("metric")
+  sleepGoalMinutes Int @default(480)
+  createdAt DateTime @default(now())
+  connections PolarConnection[]
+  syncRuns SyncRun[]
+  days DailyActivity[]
+  sleepSessions SleepSession[]
+  recharges NightlyRecharge[]
+  exercises Exercise[]
+  journals ManualJournalEntry[]
+  derivedMetrics DerivedMetric[]
+  webhookEvents WebhookEvent[]
+}
+
+model PolarConnection {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  polarUserId String?
+  accessTokenEncrypted String?
+  refreshTokenEncrypted String?
+  expiresAt DateTime?
+  status String @default("disconnected")
+  scope String?
+  sourceApiVersion String @default("accesslink-v3")
+  updatedAt DateTime @updatedAt
+  @@unique([userId, polarUserId])
+}
+
+model SyncRun {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  status String
+  sourceVersion String
+  cursor String?
+  recordsCreated Int @default(0)
+  recordsUpdated Int @default(0)
+  errorCode String?
+  errorMessage String?
+}
+
+model WebhookEvent {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  sourceEventId String @unique
+  type String
+  receivedAt DateTime @default(now())
+  processedAt DateTime?
+  payloadJson Json
+  signatureValid Boolean
+}
+
+model DailyActivity {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  localDate String
+  sourceId String
+  sourceApiVersion String
+  sourceTimestamp DateTime?
+  retrievedAt DateTime @default(now())
+  sourceTimezone String?
+  steps Int?
+  activeCaloriesKcal Int?
+  @@unique([userId, sourceId])
+  @@index([userId, localDate])
+}
+
+model HeartRateSample {
+  id String @id @default(cuid())
+  userId String
+  observedAt DateTime
+  bpm Int
+  sourceId String
+  sourceApiVersion String
+  retrievedAt DateTime @default(now())
+  @@unique([userId, sourceId])
+}
+
+model SleepSession {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  localDate String
+  sourceId String
+  sourceApiVersion String
+  startTime DateTime
+  endTime DateTime
+  timeInBedSeconds Int
+  timeAsleepSeconds Int?
+  stageJson Json?
+  polarSleepScore Json?
+  sourceTimezone String?
+  retrievedAt DateTime @default(now())
+  @@unique([userId, sourceId])
+  @@index([userId, localDate])
+}
+
+model NightlyRecharge {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  localDate String
+  sourceId String
+  sourceApiVersion String
+  rechargeStatus String?
+  hrvAvgMs Float?
+  overnightHeartRateBpm Float?
+  respiratoryRatePerMin Float?
+  componentJson Json?
+  retrievedAt DateTime @default(now())
+  @@unique([userId, sourceId])
+  @@index([userId, localDate])
+}
+
+model Exercise {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  sourceId String
+  sourceApiVersion String
+  startTime DateTime
+  endTime DateTime?
+  durationSeconds Int?
+  sport String?
+  distanceMeters Float?
+  caloriesKcal Int?
+  averageHeartRateBpm Int?
+  zoneJson Json?
+  sourceTimezone String?
+  retrievedAt DateTime @default(now())
+  @@unique([userId, sourceId])
+}
+
+model ManualJournalEntry {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  localDate String
+  rpe Int?
+  durationMinutes Int?
+  sport String?
+  notes String?
+  createdAt DateTime @default(now())
+  @@index([userId, localDate])
+}
+
+model DerivedMetric {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  localDate String
+  name String
+  calculationVersion String
+  value Json
+  inputProvenance Json
+  calculatedAt DateTime @default(now())
+  @@index([userId, localDate, name])
+}
